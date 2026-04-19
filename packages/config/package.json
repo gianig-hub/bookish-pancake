@@ -1,0 +1,9 @@
+{
+  "name": "@ek-marketplace/config",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "lint": "echo 'no lint configured'",
+    "clean": "echo 'nothing to clean'"
+  }
+}
