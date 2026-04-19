@@ -18,10 +18,11 @@ const updateSchema = z.object({
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const listing = await prisma.listing.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       category: true,
       brand: true,
@@ -37,7 +38,7 @@ export async function GET(
 
   // increment views
   await prisma.listing.update({
-    where: { id: params.id },
+    where: { id },
     data: { views: { increment: 1 } },
   })
 
@@ -46,14 +47,15 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const listing = await prisma.listing.findUnique({ where: { id: params.id } })
+  const { id } = await params
+  const listing = await prisma.listing.findUnique({ where: { id } })
   if (!listing) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
@@ -72,7 +74,7 @@ export async function PUT(
     }
 
     const updated = await prisma.listing.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...parsed.data,
         publishedAt:
@@ -97,14 +99,15 @@ export async function PUT(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const listing = await prisma.listing.findUnique({ where: { id: params.id } })
+  const { id } = await params
+  const listing = await prisma.listing.findUnique({ where: { id } })
   if (!listing) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
@@ -112,6 +115,6 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  await prisma.listing.delete({ where: { id: params.id } })
+  await prisma.listing.delete({ where: { id } })
   return NextResponse.json({ success: true })
 }

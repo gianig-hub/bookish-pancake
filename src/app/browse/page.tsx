@@ -97,19 +97,20 @@ function buildPageUrl(searchParams: SearchParams, newPage: number): string {
 export default async function BrowsePage({
   searchParams,
 }: {
-  searchParams: SearchParams
+  searchParams: Promise<SearchParams>
 }) {
+  const resolvedSearchParams = await searchParams
   const [filterOptions, { listings, total, page, totalPages }] = await Promise.all([
     getFilterOptions(),
-    getListings(searchParams),
+    getListings(resolvedSearchParams),
   ])
 
   const hasFilters =
-    searchParams.q ||
-    searchParams.category ||
-    searchParams.brand ||
-    searchParams.city ||
-    searchParams.condition
+    resolvedSearchParams.q ||
+    resolvedSearchParams.category ||
+    resolvedSearchParams.brand ||
+    resolvedSearchParams.city ||
+    resolvedSearchParams.condition
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -128,7 +129,7 @@ export default async function BrowsePage({
               categories={filterOptions.categories}
               brands={filterOptions.brands}
               cities={filterOptions.cities}
-              searchParams={searchParams}
+              searchParams={resolvedSearchParams}
             />
           </Suspense>
         </aside>
@@ -191,7 +192,7 @@ export default async function BrowsePage({
             <div className="mt-8 flex justify-center gap-2">
               {page > 1 && (
                 <Link
-                  href={buildPageUrl(searchParams, page - 1)}
+                  href={buildPageUrl(resolvedSearchParams, page - 1)}
                   className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-50 text-sm"
                 >
                   ← Previous
@@ -202,7 +203,7 @@ export default async function BrowsePage({
                 return (
                   <Link
                     key={pageNum}
-                    href={buildPageUrl(searchParams, pageNum)}
+                    href={buildPageUrl(resolvedSearchParams, pageNum)}
                     className={`px-4 py-2 rounded border text-sm ${
                       pageNum === page
                         ? 'bg-cold-600 text-white border-cold-600'
@@ -215,7 +216,7 @@ export default async function BrowsePage({
               })}
               {page < totalPages && (
                 <Link
-                  href={buildPageUrl(searchParams, page + 1)}
+                  href={buildPageUrl(resolvedSearchParams, page + 1)}
                   className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-50 text-sm"
                 >
                   Next →

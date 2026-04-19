@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { ContactSellerModal } from '@/features/listings/components/ContactSellerModal'
 
 interface Props {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 async function getListing(slug: string) {
@@ -23,7 +23,8 @@ async function getListing(slug: string) {
 }
 
 export default async function ListingDetailPage({ params }: Props) {
-  const listing = await getListing(params.slug)
+  const { slug } = await params
+  const listing = await getListing(slug)
 
   if (!listing || listing.status !== 'PUBLISHED') {
     notFound()
