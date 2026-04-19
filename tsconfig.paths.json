@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@ek/ui": ["./packages/ui/src/index.ts"],
+      "@ek/ui/*": ["./packages/ui/src/*"],
+      "@ek/config": ["./packages/config/src/index.ts"],
+      "@ek/config/*": ["./packages/config/src/*"],
+      "@ek/ai": ["./packages/ai/src/index.ts"],
+      "@ek/ai/*": ["./packages/ai/src/*"],
+      "@ek/types": ["./packages/types/src/index.ts"],
+      "@ek/types/*": ["./packages/types/src/*"],
+      "@ek/db": ["./packages/db/src/index.ts"],
+      "@ek/db/*": ["./packages/db/src/*"]
+    }
+  }
+}

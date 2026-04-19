@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "paths": {
+      "@ek/ai": ["../../packages/ai/src/index.ts"],
+      "@ek/config": ["../../packages/config/src/index.ts"],
+      "@ek/types": ["../../packages/types/src/index.ts"],
+      "@ek/db": ["../../packages/db/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

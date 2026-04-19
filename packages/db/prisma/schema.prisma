@@ -1,0 +1,40 @@
+// This is a minimal Prisma schema template.
+// Full schema will be added in Phase 1 development.
+// Run: npm run db:generate --workspace=packages/db
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// User
+// NOTE: Full user model to be defined in Phase 1.
+// ---------------------------------------------------------------------------
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   @default("BUYER")
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// TODO: Add the following models in Phase 1:
+//   - Session (NextAuth)
+//   - Account (NextAuth OAuth)
+//   - Listing
+//   - ListingImage
+//   - Category
+//   - ContactMessage
+//   - BusinessProfile
+//   - Subscription
+// ---------------------------------------------------------------------------
