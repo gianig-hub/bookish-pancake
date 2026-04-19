@@ -1,0 +1,16 @@
+{
+  "name": "@ek-marketplace/api",
+  "version": "0.1.0",
+  "description": "EK Marketplace API (starter/MVP)",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ek-marketplace/types": "*",
+    "@ek-marketplace/config": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
