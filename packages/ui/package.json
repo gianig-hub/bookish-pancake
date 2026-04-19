@@ -1,0 +1,16 @@
+{
+  "name": "@ek-marketplace/ui",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.7",
+    "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}
