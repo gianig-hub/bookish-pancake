@@ -1,0 +1,32 @@
+{
+  "name": "everything-kold-market",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EK Marketplace — AI-first UK vertical marketplace for AC, refrigeration, and cold rooms",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:migrate": "npm run db:migrate --workspace=packages/db",
+    "db:seed": "npm run seed --workspace=packages/db",
+    "db:studio": "npm run studio --workspace=packages/db",
+    "db:generate": "npm run generate --workspace=packages/db"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.4",
+    "typescript": "^5.4.5",
+    "prettier": "^3.3.2",
+    "eslint": "^8.57.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

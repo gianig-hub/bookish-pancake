@@ -1,0 +1,251 @@
+// Prisma schema for EK Marketplace
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  SELLER
+  BUYER
+  INSTALLER
+  SHOP
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum ListingCondition {
+  NEW
+  USED
+  REFURBISHED
+}
+
+// ---------------------------------------------------------------------------
+// User & Profile
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  role      UserRole @default(BUYER)
+  active    Boolean  @default(true)
+
+  profile          Profile?
+  listings         Listing[]
+  messagesSent     ContactMessage[]            @relation("MessageSender")
+  messagesReceived ContactMessage[]            @relation("MessageSeller")
+  moderationLogs   ModerationLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Profile {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  businessName String?
+  phone        String?
+  whatsapp     String?
+  bio          String?
+  verified     Boolean @default(false)
+
+  cityId String?
+  city   City?   @relation(fields: [cityId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Reference data
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  icon        String?
+  sortOrder   Int       @default(0)
+
+  listings Listing[]
+
+  createdAt DateTime @default(now())
+
+  @@index([slug])
+}
+
+model Brand {
+  id   String  @id @default(cuid())
+  name String  @unique
+  slug String  @unique
+  logo String?
+
+  listings Listing[]
+
+  createdAt DateTime @default(now())
+
+  @@index([slug])
+}
+
+model City {
+  id        String  @id @default(cuid())
+  name      String  @unique
+  slug      String  @unique
+  region    String
+  postcode  String?
+  sortOrder Int     @default(0)
+
+  listings Listing[]
+  profiles Profile[]
+
+  createdAt DateTime @default(now())
+
+  @@index([slug])
+}
+
+// ---------------------------------------------------------------------------
+// Listings
+// ---------------------------------------------------------------------------
+
+model Listing {
+  id          String @id @default(cuid())
+  title       String
+  slug        String @unique
+  description String @db.Text
+
+  status    ListingStatus    @default(DRAFT)
+  condition ListingCondition
+
+  price          Float?
+  priceOnRequest Boolean @default(false)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  brandId String?
+  brand   Brand?  @relation(fields: [brandId], references: [id])
+
+  model String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  cityId String
+  city   City   @relation(fields: [cityId], references: [id])
+
+  featured Boolean @default(false)
+  views    Int     @default(0)
+
+  images   ListingImage[]
+  messages ContactMessage[]
+
+  publishedAt DateTime?
+  expiresAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([cityId])
+  @@index([status])
+  @@index([slug])
+}
+
+model ListingImage {
+  id        String  @id @default(cuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  url       String
+  localPath String?
+  fileName  String
+  mimeType  String
+  fileSize  Int
+
+  alt       String?
+  isPrimary Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
+}
+
+// ---------------------------------------------------------------------------
+// Messaging
+// ---------------------------------------------------------------------------
+
+model ContactMessage {
+  id String @id @default(cuid())
+
+  userId String?
+  user   User?   @relation("MessageSender", fields: [userId], references: [id], onDelete: SetNull)
+
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  sellerId String
+  seller   User   @relation("MessageSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  name    String
+  email   String
+  phone   String?
+  subject String?
+  message String  @db.Text
+
+  read     Boolean @default(false)
+  archived Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([listingId])
+  @@index([sellerId])
+  @@index([userId])
+  @@index([read])
+}
+
+// ---------------------------------------------------------------------------
+// Moderation
+// ---------------------------------------------------------------------------
+
+model ModerationLog {
+  id          String  @id @default(cuid())
+  moderatorId String
+  moderator   User    @relation(fields: [moderatorId], references: [id])
+  action      String  // APPROVE | REJECT | FLAG | ARCHIVE
+  reason      String? @db.Text
+  listingId   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([moderatorId])
+  @@index([listingId])
+}
