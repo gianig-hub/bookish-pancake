@@ -1,0 +1,17 @@
+{
+  "name": "@ek/config",
+  "version": "0.1.0",
+  "description": "Shared configuration and constants for EK Marketplace",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": ["src"],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ek/types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
