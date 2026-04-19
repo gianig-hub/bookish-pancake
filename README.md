@@ -2,7 +2,7 @@
 
 The UK's specialist marketplace for air conditioning, refrigeration, cold rooms, and related equipment & services.
 
-Built as a modern TurboRepo monorepo using **pnpm**, **Next.js 14**, **TypeScript**, and **Tailwind CSS**.
+Built as a modern TurboRepo monorepo using **pnpm**, **Next.js 15**, **TypeScript**, and **Tailwind CSS**.
 
 ---
 
@@ -11,7 +11,7 @@ Built as a modern TurboRepo monorepo using **pnpm**, **Next.js 14**, **TypeScrip
 ```
 bookish-pancake/
 ├── apps/
-│   └── web/          # Next.js 14 frontend (app router, TypeScript, Tailwind)
+│   └── web/          # Next.js 15 frontend (app router, TypeScript, Tailwind)
 ├── packages/
 │   └── types/        # Shared TypeScript types
 ├── package.json      # Root manifest — TurboRepo scripts
@@ -107,7 +107,7 @@ pnpm build
 ## Tech Stack
 
 - [TurboRepo](https://turbo.build/) — monorepo build system
-- [Next.js 14](https://nextjs.org/) — React framework (app router)
+- [Next.js 15](https://nextjs.org/) — React framework (app router)
 - [TypeScript](https://www.typescriptlang.org/) — type safety
 - [Tailwind CSS](https://tailwindcss.com/) — utility-first styling
 - [pnpm](https://pnpm.io/) — fast, disk-efficient package manager
