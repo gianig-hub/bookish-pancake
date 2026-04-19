@@ -1,0 +1,185 @@
+version: '3.8'
+
+# EK Marketplace — Local Development Stack
+# Services: web, api, worker, postgres, redis, nginx
+# All config is driven by .env (copy .env.example → .env to get started)
+#
+# Usage:
+#   docker-compose up            → start everything
+#   docker-compose up -d         → start in background
+#   docker-compose logs -f api   → tail logs for one service
+#   docker-compose exec api npm run db:migrate
+#   docker-compose down          → stop and remove containers
+
+services:
+
+  # ─────────────────────────────────────────────
+  # WEB — Next.js frontend
+  # Renders the marketplace UI.
+  # Talks to the API service over the internal network.
+  # Hot-reload is enabled via the volume mount.
+  # ─────────────────────────────────────────────
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: ekmarket_web
+    ports:
+      - "${WEB_PORT:-3000}:3000"          # http://localhost:3000
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      API_URL: ${API_INTERNAL_URL}        # internal URL used by SSR
+    volumes:
+      - ./apps/web:/app                   # source code (hot reload)
+      - /app/node_modules                 # keep container node_modules isolated
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - ekmarket
+
+  # ─────────────────────────────────────────────
+  # API — Express backend
+  # Handles all business logic, database queries, and REST endpoints.
+  # Health check lets dependent services wait until it is truly ready.
+  # ─────────────────────────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: ekmarket_api
+    ports:
+      - "${API_PORT:-4000}:4000"          # http://localhost:4000
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      API_PORT: ${API_PORT:-4000}
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - ekmarket
+
+  # ─────────────────────────────────────────────
+  # WORKER — Background job processor
+  # Handles emails, AI processing, cleanup tasks, and queue jobs.
+  # Not exposed externally — communicates via the internal network only.
+  # ─────────────────────────────────────────────
+  worker:
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile
+    container_name: ekmarket_worker
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+    volumes:
+      - ./apps/worker:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ekmarket
+
+  # ─────────────────────────────────────────────
+  # POSTGRES — Primary relational database
+  # Stores listings, users, transactions, and business data.
+  # Data is persisted in the postgres_data named volume so it
+  # survives container restarts.
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: ekmarket_db
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"     # connect with any Postgres client
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-ekuser}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-ekpassword}
+      POSTGRES_DB: ${DATABASE_NAME:-ekmarket}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-ekuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ekmarket
+
+  # ─────────────────────────────────────────────
+  # REDIS — In-memory cache and job queue
+  # Reduces database load for hot data; also powers the background
+  # job queue consumed by the worker service.
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ekmarket_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"        # connect with redis-cli or GUI
+    volumes:
+      - redis_data:/data                  # AOF/RDB persistence (optional but safe)
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - ekmarket
+
+  # ─────────────────────────────────────────────
+  # NGINX — Reverse proxy / single entry point
+  # Routes HTTP traffic:
+  #   /       → web service
+  #   /api/   → api service
+  # Exposes port 80 (HTTP) and 443 (HTTPS — for local SSL testing).
+  # Config is read-only mounted so changes are picked up on restart.
+  # ─────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: ekmarket_nginx
+    ports:
+      - "80:80"                           # http://localhost
+      - "443:443"                         # https://localhost (local cert)
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - web
+      - api
+    networks:
+      - ekmarket
+
+# ─────────────────────────────────────────────
+# Named volumes — data persists across docker-compose down/up
+# ─────────────────────────────────────────────
+volumes:
+  postgres_data:
+  redis_data:
+
+# ─────────────────────────────────────────────
+# Bridge network — services talk to each other by container name
+# e.g. API connects to postgres at postgres:5432
+# ─────────────────────────────────────────────
+networks:
+  ekmarket:
+    driver: bridge
