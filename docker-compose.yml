@@ -1,0 +1,140 @@
+# EK Marketplace — Docker Compose (local development)
+#
+# Services: web, api, worker, postgres, redis, nginx
+#
+# Usage:
+#   cp .env.example .env.local
+#   docker-compose up
+#
+# TODO: Add build stages for production images
+
+version: "3.9"
+
+services:
+  # --------------------------------------------------------------------------
+  # Frontend — Next.js
+  # --------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://api:4000
+    volumes:
+      - ./apps/web:/app/apps/web
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
+    depends_on:
+      - api
+    networks:
+      - ek-net
+
+  # --------------------------------------------------------------------------
+  # Backend API — Express
+  # --------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://ekuser:ekpassword@postgres:5432/ekdb}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+    volumes:
+      - ./apps/api:/app/apps/api
+      - /app/apps/api/node_modules
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ek-net
+
+  # --------------------------------------------------------------------------
+  # Worker — background jobs
+  # TODO: Build out when queue processing is needed
+  # --------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/worker.Dockerfile
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: ${DATABASE_URL:-postgresql://ekuser:ekpassword@postgres:5432/ekdb}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    volumes:
+      - ./apps/worker:/app/apps/worker
+      - /app/apps/worker/node_modules
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ek-net
+
+  # --------------------------------------------------------------------------
+  # PostgreSQL database
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ekuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ekpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-ekdb}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - ek-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ekuser -d ekdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------------------------
+  # Redis (sessions, caching, queues)
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - ek-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------------------------
+  # Nginx reverse proxy
+  # --------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/sites:/etc/nginx/conf.d:ro
+    depends_on:
+      - web
+      - api
+    networks:
+      - ek-net
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  ek-net:
+    driver: bridge
