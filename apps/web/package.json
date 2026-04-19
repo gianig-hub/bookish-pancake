@@ -1,0 +1,17 @@
+{
+  "name": "@ek-marketplace/web",
+  "version": "0.1.0",
+  "description": "EK Marketplace web application (starter/MVP)",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ek-marketplace/types": "*",
+    "@ek-marketplace/config": "*",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "typescript": "^5.4.0"
+  }
+}
