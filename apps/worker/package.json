@@ -1,0 +1,9 @@
+{
+  "name": "@ek/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Worker not yet implemented. See README.md'",
+    "type-check": "tsc --noEmit"
+  }
+}
