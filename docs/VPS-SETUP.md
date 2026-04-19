@@ -1,6 +1,6 @@
 # VPS Setup Guide for EK Marketplace on Ubuntu 24.04 LTS
 
-> **Estimated setup time:** 2–3 hours  
+> **Estimated setup time:** 2–3 hours (experienced) / 4–6 hours (beginner)  
 > **Target OS:** Ubuntu 24.04 LTS  
 > **Target providers:** DigitalOcean, Linode, AWS Lightsail, Hetzner, OVH
 
@@ -91,12 +91,21 @@ rsync --archive --chown=deploy:deploy ~/.ssh /home/deploy/
 ```bash
 # Edit the sudoers file
 visudo
+```
 
-# Add this line at the end (allows deploy to run all commands without a password)
+Add one of the following lines at the end of the file:
+
+**Option A — Unrestricted (convenient, less secure):**
+```
 deploy ALL=(ALL) NOPASSWD:ALL
 ```
 
-> ⚠️ **Security note:** This is convenient for automated deployments. For tighter security, restrict to specific commands instead of `ALL`.
+**Option B — Restricted to deployment commands (recommended):**
+```
+deploy ALL=(ALL) NOPASSWD: /usr/bin/docker, /usr/local/bin/docker-compose, /bin/systemctl restart ekmarket, /bin/systemctl start ekmarket, /bin/systemctl stop ekmarket, /usr/sbin/nginx
+```
+
+> ⚠️ **Security note:** Option A is convenient for automated deployments but grants full root equivalent access. Use Option B in production environments where you want to limit the blast radius of a compromised deploy key.
 
 ### 1.5 Disable Root Login & Password Authentication
 
@@ -255,6 +264,16 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO ekbackup;
 
 \q
 EOF
+```
+
+> ⚠️ **Security:** Replace `CHANGE_THIS_STRONG_PASSWORD` and `CHANGE_THIS_BACKUP_PASSWORD` with strong, unique passwords **before** running these commands.
+
+Set up a `.pgpass` file so backup scripts can connect without exposing the password in process listings:
+
+```bash
+# Create the pgpass file for the deploy user
+echo "127.0.0.1:5432:ekmarket:ekbackup:CHANGE_THIS_BACKUP_PASSWORD" >> ~/.pgpass
+chmod 600 ~/.pgpass
 ```
 
 Configure PostgreSQL to allow local connections:
@@ -437,6 +456,13 @@ server {
 sudo nano /etc/nginx/sites-available/api.ekmarketplace.co.uk
 ```
 
+> **Note:** Add the `limit_req_zone` directive to `/etc/nginx/nginx.conf` inside the `http {}` block (only once, not per server block):
+>
+> ```nginx
+> # In /etc/nginx/nginx.conf, inside the http { } block:
+> limit_req_zone $binary_remote_addr zone=api:10m rate=30r/m;
+> ```
+
 ```nginx
 server {
     listen 80;
@@ -459,8 +485,7 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
-    # Rate limiting for API
-    limit_req_zone $binary_remote_addr zone=api:10m rate=30r/m;
+    # Rate limiting (limit_req_zone must be defined in nginx.conf http block)
     limit_req zone=api burst=10 nodelay;
 
     location / {
@@ -777,6 +802,13 @@ Fill in the `.env.production` file (see template below). Set restrictive permiss
 chmod 600 /opt/ekmarket/.env.production
 ```
 
+Generate secrets before editing the file:
+
+```bash
+# Generate NEXTAUTH_SECRET
+openssl rand -base64 32
+```
+
 #### `.env.production` Template
 
 ```dotenv
@@ -787,7 +819,7 @@ APP_URL=https://ekmarketplace.co.uk
 
 # === Next.js ===
 NEXTAUTH_URL=https://ekmarketplace.co.uk
-NEXTAUTH_SECRET=<run: openssl rand -base64 32>
+NEXTAUTH_SECRET=REPLACE_WITH_OUTPUT_OF__openssl_rand_-base64_32
 
 # === Database ===
 DATABASE_URL=postgresql://ekuser:CHANGE_THIS_STRONG_PASSWORD@127.0.0.1:5432/ekmarket
@@ -965,14 +997,14 @@ git pull origin main
 echo "Building Docker images..."
 docker-compose -f docker-compose.prod.yml build --no-cache
 
-echo "Running database migrations..."
-docker-compose -f docker-compose.prod.yml exec -T web npx prisma migrate deploy
-
 echo "Restarting containers..."
 docker-compose -f docker-compose.prod.yml up -d --remove-orphans
 
 echo "Waiting for services to be healthy..."
 sleep 10
+
+echo "Running database migrations..."
+docker-compose -f docker-compose.prod.yml exec -T web npx prisma migrate deploy
 
 echo "Checking web health..."
 curl -sf http://localhost:3000/api/health || (echo "ERROR: Web health check failed!" && exit 1)
@@ -1064,12 +1096,14 @@ DB_USER="ekbackup"
 RETENTION_DAYS=30
 
 # Create backup
+# Uses ~/.pgpass for credentials (avoids exposing the password in process listings)
+# Format: hostname:port:database:username:password
+# Example: echo "127.0.0.1:5432:ekmarket:ekbackup:CHANGE_THIS_BACKUP_PASSWORD" >> ~/.pgpass && chmod 600 ~/.pgpass
 echo "Starting database backup: $BACKUP_FILE"
-PGPASSWORD="CHANGE_THIS_BACKUP_PASSWORD" pg_dump \
+pg_dump \
   -h 127.0.0.1 \
   -U "$DB_USER" \
   -d "$DB_NAME" \
-  --no-password \
   --format=plain \
   --verbose \
   | gzip > "$BACKUP_FILE"
