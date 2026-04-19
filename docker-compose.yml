@@ -1,0 +1,142 @@
+# EK Marketplace — Docker Compose (Local Development)
+# -------------------------------------------------------
+# Usage: docker compose up
+# Requires: .env.local (copy from .env.example)
+
+services:
+
+  # -------------------------------------------------------
+  # Web — Next.js frontend
+  # -------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: ek-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+    volumes:
+      - ./apps/web:/app/apps/web
+      - /app/apps/web/node_modules
+    depends_on:
+      - api
+    restart: unless-stopped
+    # TODO: Add Dockerfile to apps/web once Next.js is initialised
+
+  # -------------------------------------------------------
+  # API — Express REST API
+  # -------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: ek-api
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - API_PORT=${API_PORT:-4000}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+    volumes:
+      - ./apps/api:/app/apps/api
+      - /app/apps/api/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    # TODO: Add Dockerfile to apps/api once Express is initialised
+
+  # -------------------------------------------------------
+  # Worker — Background job processor
+  # -------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: ek-worker
+    environment:
+      - NODE_ENV=development
+      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=${DATABASE_URL}
+    volumes:
+      - ./apps/worker:/app/apps/worker
+      - /app/apps/worker/node_modules
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    # TODO: Add Dockerfile to apps/worker once worker is initialised
+
+  # -------------------------------------------------------
+  # PostgreSQL — Relational database
+  # -------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: ek-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ekuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ekpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-ekmarketplace}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ekuser} -d ${POSTGRES_DB:-ekmarketplace}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # -------------------------------------------------------
+  # Redis — Cache, sessions, job queue
+  # -------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ek-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # -------------------------------------------------------
+  # Nginx — Reverse proxy
+  # -------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: ek-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/sites:/etc/nginx/conf.d:ro
+      # TODO: Mount SSL certificates for production
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - web
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
