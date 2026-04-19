@@ -9,12 +9,14 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import type { User } from '@ek/types';
 
-export default function LoginPage() {
+// Inner component — useSearchParams must live inside a <Suspense> boundary
+// in Next.js 15+.
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -119,5 +121,13 @@ export default function LoginPage() {
       </p>
       {/* TODO: Add forgot-password link */}
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '4rem', textAlign: 'center' }}>Loading…</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
