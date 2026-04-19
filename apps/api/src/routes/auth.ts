@@ -2,12 +2,13 @@
  * Auth routes: /auth/register, /auth/login, /auth/logout, /auth/me
  *
  * TODO: Add email verification flow before production.
- * TODO: Replace in-memory rate limiter with express-rate-limit + Redis before production.
+ * TODO: Replace in-memory store in express-rate-limit with Redis store before production.
  * TODO: Add OAuth (Google, etc.) when social login is needed.
  */
 
 import { Router } from 'express';
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { createUser, verifyCredentials } from '../lib/users';
 import { createSession, deleteSession } from '../lib/session';
 import { requireAuth } from '../middleware/auth';
@@ -16,41 +17,16 @@ import type { LoginInput, RegisterInput } from '@ek/types';
 const router = Router();
 
 // ---------------------------------------------------------------------------
-// Simple in-memory rate limiter — applied as middleware to all auth routes.
-// TODO: Replace with express-rate-limit + Redis before production.
+// Rate limiter for auth endpoints — 10 requests per 15-minute window per IP.
+// TODO: Add a Redis store (rate-limit-redis) for distributed environments.
 // ---------------------------------------------------------------------------
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const RATE_LIMIT_MAX = 10; // requests per window per IP
-
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
-
-function authRateLimit(req: Request, res: Response, next: NextFunction): void {
-  const ip = (req.ip ?? req.socket.remoteAddress) ?? 'unknown';
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || entry.resetAt < now) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    next();
-    return;
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) {
-    res.status(429).json({ error: 'Too many requests. Please try again later.' });
-    return;
-  }
-
-  entry.count += 1;
-  next();
-}
-
-// Apply rate limiting to all auth routes
-router.use(authRateLimit);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+});
 
 // ---------------------------------------------------------------------------
 // Safe email format check — avoids regex backtracking (ReDoS).
@@ -65,7 +41,7 @@ function isValidEmailFormat(email: string): boolean {
 }
 
 // POST /auth/register
-router.post('/register', authRateLimit, async (req: Request, res: Response) => {
+router.post('/register', authLimiter, async (req: Request, res: Response) => {
   const { email, password, name, role } = req.body as RegisterInput;
 
   if (!email || !password) {
@@ -99,7 +75,7 @@ router.post('/register', authRateLimit, async (req: Request, res: Response) => {
 });
 
 // POST /auth/login
-router.post('/login', authRateLimit, async (req: Request, res: Response) => {
+router.post('/login', authLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body as LoginInput;
 
   if (!email || !password) {

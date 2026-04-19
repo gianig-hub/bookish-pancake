@@ -40,9 +40,8 @@ Authorization: Bearer <sessionId>
 ## TODO
 
 - Connect to PostgreSQL (replace in-memory user/session stores)
-- Add Redis for session storage
+- Add Redis for session storage + rate limit store (rate-limit-redis)
 - Add Zod request validation
-- Add rate limiting (express-rate-limit)
 - Add security headers (Helmet.js)
 - Add request logging (Pino)
 - Add OAuth / social login support
