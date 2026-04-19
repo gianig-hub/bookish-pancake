@@ -1,0 +1,160 @@
+# ============================================================
+# EK Marketplace — Docker Compose (Local Development)
+# ============================================================
+# Usage:
+#   cp .env.example .env.local
+#   docker-compose up
+#
+# Services:
+#   web      → Next.js frontend       → http://localhost:3000
+#   api      → Express API            → http://localhost:4000
+#   worker   → BullMQ job processor   → (no HTTP port)
+#   postgres → PostgreSQL database    → localhost:5432
+#   redis    → Redis (queues/cache)   → localhost:6379
+#   nginx    → Reverse proxy          → http://localhost:80
+# ============================================================
+
+version: "3.9"
+
+services:
+
+  # ----------------------------------------------------------
+  # Nginx reverse proxy
+  # Routes traffic to web and api containers.
+  # In local dev, use localhost. In prod, use real domains.
+  # ----------------------------------------------------------
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: ek_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/koldmarket.conf:/etc/nginx/conf.d/koldmarket.conf:ro
+    depends_on:
+      - web
+      - api
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Next.js web frontend
+  # Serves the public site and account pages.
+  # Hot reload enabled in development.
+  # ----------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: ek_web
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://api:4000
+    volumes:
+      - ./apps/web:/app/apps/web
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Express API backend
+  # Handles all business logic, database access, auth.
+  # ----------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: ek_api
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://ekuser:ekpassword@postgres:5432/ekmarketplace
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./apps/api:/app/apps/api
+      - /app/apps/api/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Background worker
+  # Processes queued jobs: emails, AI tasks, cleanup.
+  # ----------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: ek_worker
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://ekuser:ekpassword@postgres:5432/ekmarketplace
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./apps/worker:/app/apps/worker
+      - /app/apps/worker/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # PostgreSQL database
+  # Main relational database for all marketplace data.
+  # Data is persisted in a named volume.
+  # ----------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: ek_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ekmarketplace
+      POSTGRES_USER: ekuser
+      POSTGRES_PASSWORD: ekpassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ekuser -d ekmarketplace"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ----------------------------------------------------------
+  # Redis
+  # Used for BullMQ job queues, session caching, rate limiting.
+  # ----------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ek_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+# ============================================================
+# Named volumes for data persistence across container restarts
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
