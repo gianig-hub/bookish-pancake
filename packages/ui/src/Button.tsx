@@ -24,10 +24,14 @@ export function Button({
     cursor: "pointer",
     textDecoration: "none",
     border: "none",
-    background: variant === "primary" ? "#0070f3" : "transparent",
-    color: variant === "primary" ? "#ffffff" : "#111827",
+    background:
+      variant === "primary" ? "var(--color-primary, #0070f3)" : "transparent",
+    color:
+      variant === "primary"
+        ? "var(--color-white, #ffffff)"
+        : "var(--color-text, #111827)",
     ...(variant === "secondary" && {
-      border: "1px solid #e5e7eb",
+      border: "1px solid var(--color-border, #e5e7eb)",
     }),
   };
 
