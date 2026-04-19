@@ -1,0 +1,12 @@
+{
+  "name": "@ek/config",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./index.js",
+  "scripts": {
+    "lint": "echo 'No lint for config package'"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
