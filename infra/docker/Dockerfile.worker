@@ -1,0 +1,33 @@
+FROM node:20-alpine AS base
+WORKDIR /app
+
+# Install dependencies
+FROM base AS deps
+COPY package.json package-lock.json* ./
+COPY apps/worker/package.json ./apps/worker/
+COPY packages/ai/package.json ./packages/ai/
+COPY packages/config/package.json ./packages/config/
+COPY packages/types/package.json ./packages/types/
+COPY packages/db/package.json ./packages/db/
+RUN npm ci
+
+# Build stage
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build --workspace=apps/worker
+
+# Production stage
+FROM base AS runner
+ENV NODE_ENV production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 workeruser
+
+COPY --from=builder --chown=workeruser:nodejs /app/apps/worker/dist ./apps/worker/dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+
+USER workeruser
+
+CMD ["node", "apps/worker/dist/index.js"]

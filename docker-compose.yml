@@ -1,0 +1,143 @@
+version: '3.9'
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: ek_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ekmarket}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ekmarket_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-ekmarket_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ekmarket}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis (Cache & Queue)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ek_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # API Service
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: ek_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ekmarket}:${POSTGRES_PASSWORD:-ekmarket_dev}@postgres:5432/${POSTGRES_DB:-ekmarket_dev}
+      REDIS_URL: redis://redis:6379
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./apps/api:/app/apps/api
+      - ./packages:/app/packages
+      - /app/node_modules
+      - /app/apps/api/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: npm run dev --workspace=apps/api
+
+  # ---------------------------------------------------------------------------
+  # Web Frontend
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web
+    container_name: ek_web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev_secret_replace_in_production}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app/apps/web
+      - ./packages:/app/packages
+      - /app/node_modules
+      - /app/apps/web/node_modules
+    depends_on:
+      - api
+    command: npm run dev --workspace=apps/web
+
+  # ---------------------------------------------------------------------------
+  # Worker Service
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.worker
+    container_name: ek_worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ekmarket}:${POSTGRES_PASSWORD:-ekmarket_dev}@postgres:5432/${POSTGRES_DB:-ekmarket_dev}
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - ./apps/worker:/app/apps/worker
+      - ./packages:/app/packages
+      - /app/node_modules
+      - /app/apps/worker/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: npm run dev --workspace=apps/worker
+
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: ek_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - api
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: ek_network
