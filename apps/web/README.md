@@ -1,11 +1,11 @@
 # apps/web — EK Marketplace Frontend
 
-Next.js 14 frontend for the EK Marketplace.
+Next.js 15 frontend for the EK Marketplace.
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **UI**: React 18, TailwindCSS
+- **Framework**: Next.js 15 (App Router)
+- **UI**: React 19, TailwindCSS
 - **Types**: Shared from `@ek/types`
 - **Components**: Shared from `@ek/ui`
 - **Config**: Shared from `@ek/config`

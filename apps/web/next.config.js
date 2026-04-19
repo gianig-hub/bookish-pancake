@@ -5,10 +5,13 @@ const nextConfig = {
   // Transpile shared packages from the monorepo
   transpilePackages: ['@ek/ui', '@ek/config', '@ek/types'],
 
-  // Image domains (add S3/CDN domains in production)
+  // Image domains — use remotePatterns only (domains is deprecated in Next.js 15)
   images: {
-    domains: ['localhost'],
     remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
       {
         protocol: 'https',
         hostname: '**.amazonaws.com',

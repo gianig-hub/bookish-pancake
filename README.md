@@ -58,7 +58,7 @@ The API will be available at `http://localhost:4000`
 | Layer       | Technology                                |
 |-------------|-------------------------------------------|
 | Monorepo    | npm workspaces + Turborepo                |
-| Web         | Next.js 14, React 18, TailwindCSS         |
+| Web         | Next.js 15, React 19, TailwindCSS         |
 | API         | Express, TypeScript, Prisma ORM           |
 | Worker      | Node.js, Bull queues, TypeScript          |
 | Database    | PostgreSQL 16                             |
@@ -75,7 +75,7 @@ The API will be available at `http://localhost:4000`
 ```
 everything-kold-market/
 ├── apps/
-│   ├── web/          # Next.js 14 frontend marketplace UI
+│   ├── web/          # Next.js 15 frontend marketplace UI
 │   ├── api/          # Node/Express backend API
 │   └── worker/       # Background jobs, AI processing, queues
 ├── packages/
