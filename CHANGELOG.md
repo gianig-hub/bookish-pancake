@@ -8,6 +8,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Security
+- Upgraded `next` from `^14.2.3` to `^15.5.15` in `apps/web` to patch multiple DoS vulnerabilities in Next.js Server Components request deserialization (affects `>= 13.0.0, < 15.5.15`). Patched version: 15.5.15.
+
 ### Added
 - `packages/types`: `ListingPurpose`, `ListingCategory`, `ListingCondition`, `ListingDraft`, `ListingStatus`, `ListingRecord`, `ListingLocation`, `ListingPhoto` enums and interfaces
 - `packages/config`: `PURPOSE_LABELS`, `CATEGORY_LABELS`, `CONDITION_LABELS`, `PURPOSE_OPTIONS`, `CATEGORY_OPTIONS`, `CONDITION_OPTIONS`, `POSTING_LIMITS`, `POSTING_STEPS` constants
