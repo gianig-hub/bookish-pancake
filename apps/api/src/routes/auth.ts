@@ -2,18 +2,67 @@
  * Auth routes: /auth/register, /auth/login, /auth/logout, /auth/me
  *
  * TODO: Add email verification flow before production.
- * TODO: Add rate limiting (express-rate-limit) before production.
+ * TODO: Replace in-memory rate limiter with express-rate-limit + Redis before production.
  * TODO: Add OAuth (Google, etc.) when social login is needed.
  */
 
 import { Router } from 'express';
-import type { Request, Response } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { createUser, verifyCredentials } from '../lib/users';
 import { createSession, deleteSession } from '../lib/session';
 import { requireAuth } from '../middleware/auth';
 import type { LoginInput, RegisterInput } from '@ek/types';
 
 const router = Router();
+
+// ---------------------------------------------------------------------------
+// Simple in-memory rate limiter — applied as middleware to all auth routes.
+// TODO: Replace with express-rate-limit + Redis before production.
+// ---------------------------------------------------------------------------
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX = 10; // requests per window per IP
+
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
+
+const rateLimitMap = new Map<string, RateLimitEntry>();
+
+function authRateLimit(req: Request, res: Response, next: NextFunction): void {
+  const ip = (req.ip ?? req.socket.remoteAddress) ?? 'unknown';
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  if (!entry || entry.resetAt < now) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    next();
+    return;
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    return;
+  }
+
+  entry.count += 1;
+  next();
+}
+
+// Apply rate limiting to all auth routes
+router.use(authRateLimit);
+
+// ---------------------------------------------------------------------------
+// Safe email format check — avoids regex backtracking (ReDoS).
+// TODO: Replace with zod schema validation for full validation.
+// ---------------------------------------------------------------------------
+function isValidEmailFormat(email: string): boolean {
+  const at = email.indexOf('@');
+  if (at <= 0 || at === email.length - 1) return false;
+  const domain = email.slice(at + 1);
+  const dot = domain.lastIndexOf('.');
+  return dot > 0 && dot < domain.length - 1;
+}
 
 // POST /auth/register
 router.post('/register', async (req: Request, res: Response) => {
@@ -24,8 +73,8 @@ router.post('/register', async (req: Request, res: Response) => {
     return;
   }
 
-  // Basic email format check — TODO: use zod for full validation
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  // Safe email format check (no regex backtracking)
+  if (!isValidEmailFormat(email)) {
     res.status(400).json({ error: 'Invalid email address.' });
     return;
   }
