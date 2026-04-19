@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  password         String
+  name             String?
+  role             String           @default("BUYER")
+  active           Boolean          @default(true)
+  profile          Profile?
+  listings         Listing[]
+  messagesSent     ContactMessage[] @relation("MessageBuyer")
+  messagesReceived ContactMessage[] @relation("MessageSeller")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+model Profile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName String?
+  phone        String?
+  bio          String?
+  cityId       String?
+  city         City?    @relation(fields: [cityId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  sortOrder   Int       @default(0)
+  listings    Listing[]
+  createdAt   DateTime  @default(now())
+}
+
+model Brand {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  listings  Listing[]
+  createdAt DateTime  @default(now())
+}
+
+model City {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  region    String
+  sortOrder Int       @default(0)
+  listings  Listing[]
+  profiles  Profile[]
+  createdAt DateTime  @default(now())
+}
+
+model Listing {
+  id             String           @id @default(cuid())
+  title          String
+  slug           String           @unique
+  description    String
+  status         String           @default("DRAFT")
+  condition      String
+  price          Float?
+  priceOnRequest Boolean          @default(false)
+  categoryId     String
+  category       Category         @relation(fields: [categoryId], references: [id])
+  brandId        String?
+  brand          Brand?           @relation(fields: [brandId], references: [id])
+  model          String?
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cityId         String
+  city           City             @relation(fields: [cityId], references: [id])
+  featured       Boolean          @default(false)
+  views          Int              @default(0)
+  images         ListingImage[]
+  messages       ContactMessage[]
+  publishedAt    DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model ListingImage {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url       String
+  localPath String?
+  fileName  String
+  mimeType  String
+  fileSize  Int
+  alt       String?
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  buyerId   String?
+  buyer     User?    @relation("MessageBuyer", fields: [buyerId], references: [id], onDelete: SetNull)
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sellerId  String
+  seller    User     @relation("MessageSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
