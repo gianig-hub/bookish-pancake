@@ -1,0 +1,13 @@
+services:
+  web:
+    image: node:24-bookworm
+    working_dir: /app
+    command: sh -c "sleep infinity"
+  api:
+    image: node:24-bookworm
+    working_dir: /app
+    command: sh -c "sleep infinity"
+  worker:
+    image: node:24-bookworm
+    working_dir: /app
+    command: sh -c "sleep infinity"
