@@ -1,0 +1,17 @@
+{
+  "name": "@ek/config",
+  "version": "0.1.0",
+  "description": "Shared configuration and constants for EK Marketplace",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@ek/types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

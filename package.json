@@ -1,0 +1,20 @@
+{
+  "name": "ek-marketplace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EK Marketplace – AI-first UK HVAC & Refrigeration Marketplace",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:worker": "npm run dev --workspace=apps/worker",
+    "build": "npm run build --workspaces",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
