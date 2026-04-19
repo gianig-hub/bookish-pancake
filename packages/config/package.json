@@ -1,0 +1,13 @@
+{
+  "name": "@koldmarket/config",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.js",
+  "scripts": {
+    "lint": "echo 'No lint for config package'",
+    "clean": "echo 'Nothing to clean'"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

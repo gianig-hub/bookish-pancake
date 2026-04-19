@@ -1,0 +1,200 @@
+# ==============================================================================
+# KoldMarket — Local Development Stack
+# ==============================================================================
+# Usage:
+#   docker-compose up          Start all services
+#   docker-compose up -d       Start in background
+#   docker-compose logs -f     Follow logs
+#   docker-compose down        Stop all services
+#   docker-compose down -v     Stop and remove volumes (resets database)
+# ==============================================================================
+
+services:
+
+  # ----------------------------------------------------------------------------
+  # Nginx — reverse proxy and entry point
+  # Routes www/app subdomains to web, api subdomain to api
+  # Change the config in infra/nginx/ for subdomain and SSL setup
+  # ----------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: koldmarket-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/conf.d:/etc/nginx/conf.d:ro
+      # Uncomment when SSL certificates are in place:
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - koldmarket
+
+  # ----------------------------------------------------------------------------
+  # Web — Next.js frontend (marketplace UI)
+  # Dev server with hot reload via volume mount
+  # Build from apps/web/Dockerfile in production
+  # ----------------------------------------------------------------------------
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    container_name: koldmarket-web
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_APP_URL=${APP_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:4000}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - koldmarket
+
+  # ----------------------------------------------------------------------------
+  # API — Express backend
+  # Handles all business logic, database access, and AI calls
+  # Dev server with hot reload (ts-node-dev or nodemon)
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    container_name: koldmarket-api
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - JWT_SECRET=${JWT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - STORAGE_ENDPOINT=${STORAGE_ENDPOINT}
+      - STORAGE_ACCESS_KEY_ID=${STORAGE_ACCESS_KEY_ID}
+      - STORAGE_SECRET_ACCESS_KEY=${STORAGE_SECRET_ACCESS_KEY}
+      - STORAGE_BUCKET=${STORAGE_BUCKET:-koldmarket-uploads}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-5242880}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - koldmarket
+
+  # ----------------------------------------------------------------------------
+  # Worker — background job processor
+  # Handles emails, AI processing, duplicate detection, scheduled tasks
+  # Uses BullMQ with Redis as the queue backend
+  # Not exposed publicly — internal service only
+  # ----------------------------------------------------------------------------
+  worker:
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile.dev
+    container_name: koldmarket-worker
+    volumes:
+      - ./apps/worker:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@koldmarket.co.uk}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - koldmarket
+
+  # ----------------------------------------------------------------------------
+  # PostgreSQL — primary database
+  # Data persisted in named volume (survives docker-compose down)
+  # Use 'docker-compose down -v' to fully reset
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: koldmarket-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-koldmarket}
+      - POSTGRES_USER=${POSTGRES_USER:-koldmarket}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme_in_production}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-koldmarket} -d ${POSTGRES_DB:-koldmarket}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - koldmarket
+
+  # ----------------------------------------------------------------------------
+  # Redis — cache and job queue
+  # Used by BullMQ (worker jobs) and API caching
+  # Data persisted with appendonly for durability
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: koldmarket-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - koldmarket
+
+# ------------------------------------------------------------------------------
+# Named volumes — persist data across container restarts
+# ------------------------------------------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ------------------------------------------------------------------------------
+# Networks — all services communicate on a private bridge network
+# ------------------------------------------------------------------------------
+networks:
+  koldmarket:
+    driver: bridge
