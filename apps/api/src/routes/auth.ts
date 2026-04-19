@@ -65,7 +65,7 @@ function isValidEmailFormat(email: string): boolean {
 }
 
 // POST /auth/register
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', authRateLimit, async (req: Request, res: Response) => {
   const { email, password, name, role } = req.body as RegisterInput;
 
   if (!email || !password) {
@@ -99,7 +99,7 @@ router.post('/register', async (req: Request, res: Response) => {
 });
 
 // POST /auth/login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authRateLimit, async (req: Request, res: Response) => {
   const { email, password } = req.body as LoginInput;
 
   if (!email || !password) {
