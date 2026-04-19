@@ -1,0 +1,171 @@
+# ==============================================================================
+# EK Marketplace — Docker Compose (Local Development)
+# ==============================================================================
+# Starts all services needed for local development.
+# Environment variables are loaded from .env.local (copy from .env.example).
+#
+# Usage:
+#   cp .env.example .env.local
+#   docker-compose up
+#
+# Services:
+#   web      → http://localhost:3000  (Next.js frontend)
+#   api      → http://localhost:4000  (Express backend)
+#   worker   → background job processor (no public port)
+#   postgres → localhost:5432
+#   redis    → localhost:6379
+#   nginx    → http://localhost:80    (reverse proxy, optional for local dev)
+# ==============================================================================
+
+version: "3.9"
+
+services:
+
+  # ----------------------------------------------------------------------------
+  # Web — Next.js frontend
+  # ----------------------------------------------------------------------------
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_SITE_NAME=${NEXT_PUBLIC_SITE_NAME}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+    volumes:
+      # Mount source for hot reload in dev (remove for production build)
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ----------------------------------------------------------------------------
+  # API — Express backend
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - API_PORT=${API_PORT}
+      - API_ENV=${API_ENV}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FEATURE_AI_ENABLED=${FEATURE_AI_ENABLED}
+      - STORAGE_PROVIDER=${STORAGE_PROVIDER}
+      - STORAGE_LOCAL_PATH=${STORAGE_LOCAL_PATH}
+      - LOG_LEVEL=${LOG_LEVEL}
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+      # Persist uploaded files during local dev
+      - api_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ----------------------------------------------------------------------------
+  # Worker — Background job processor
+  # Processes email sends, AI jobs, cleanup tasks, notifications.
+  # ----------------------------------------------------------------------------
+  worker:
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FEATURE_AI_ENABLED=${FEATURE_AI_ENABLED}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - LOG_LEVEL=${LOG_LEVEL}
+    volumes:
+      - ./apps/worker:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ----------------------------------------------------------------------------
+  # PostgreSQL — Primary database
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ekmarketplace
+      POSTGRES_USER: ekuser
+      POSTGRES_PASSWORD: ekpassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ekuser -d ekmarketplace"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ----------------------------------------------------------------------------
+  # Redis — Queue and cache
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Persist data across restarts
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  # ----------------------------------------------------------------------------
+  # Nginx — Reverse proxy (optional in local dev, required in production)
+  # Routes traffic to web and api services.
+  # Comment out if you prefer to access web/api directly via their ports.
+  # ----------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/sites:/etc/nginx/conf.d:ro
+    depends_on:
+      - web
+      - api
+    restart: unless-stopped
+
+# ==============================================================================
+# Named Volumes
+# ==============================================================================
+volumes:
+  postgres_data:
+  redis_data:
+  api_uploads:
