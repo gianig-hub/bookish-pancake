@@ -1,0 +1,18 @@
+{
+  "name": "@ek/worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EK Marketplace background worker",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "lint": "echo 'no lint configured yet'"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.0"
+  }
+}
