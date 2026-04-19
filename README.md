@@ -2,7 +2,7 @@
 
 A modern marketplace for buying, selling, and discovering equipment, services, and businesses.
 
-Built as a **TurboRepo monorepo** using **pnpm**, **Next.js 14**, **TypeScript**, and **Tailwind CSS**.
+Built as a **TurboRepo monorepo** using **pnpm**, **Next.js 15**, **TypeScript**, and **Tailwind CSS**.
 
 ---
 
@@ -11,7 +11,7 @@ Built as a **TurboRepo monorepo** using **pnpm**, **Next.js 14**, **TypeScript**
 ```
 bookish-pancake/
 ├── apps/
-│   └── web/              # Next.js 14 frontend (TypeScript + Tailwind)
+│   └── web/              # Next.js 15 frontend (TypeScript + Tailwind)
 ├── packages/
 │   └── types/            # Shared TypeScript types
 ├── package.json          # Root workspace package
@@ -63,9 +63,9 @@ The app will be available at **http://localhost:3000**.
 
 ### `apps/web`
 
-The main Next.js 14 frontend with TypeScript and Tailwind CSS.
+The main Next.js 15 frontend with TypeScript and Tailwind CSS.
 
-- **Framework:** Next.js 14 (App Router)
+- **Framework:** Next.js 15 (App Router)
 - **Styling:** Tailwind CSS
 - **Language:** TypeScript
 
@@ -82,7 +82,7 @@ Shared TypeScript types used across the monorepo (listings, users, businesses, p
 ## Tech Stack
 
 - **Monorepo:** TurboRepo + pnpm workspaces
-- **Frontend:** Next.js 14, React 18, TypeScript, Tailwind CSS
+- **Frontend:** Next.js 15, React 19, TypeScript, Tailwind CSS
 - **Shared:** TypeScript types package
 
 ---
