@@ -6,6 +6,9 @@
     "moduleResolution": "Bundler",
     "jsx": "preserve",
     "incremental": true,
+    "allowJs": true,
+    "noEmit": true,
+    "isolatedModules": true,
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"]
