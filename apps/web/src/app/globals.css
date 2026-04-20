@@ -1,0 +1,11 @@
+/* Minimal global styles – replace with Tailwind or design system later */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f9fafb;
+  color: #111827;
+}

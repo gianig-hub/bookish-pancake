@@ -1,0 +1,22 @@
+{
+  "name": "@ek/worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EK Marketplace – background job worker",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --outDir dist",
+    "type-check": "tsc --noEmit",
+    "lint": "echo 'no linter configured yet'"
+  },
+  "dependencies": {
+    "@ek/config": "workspace:*",
+    "@ek/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}
