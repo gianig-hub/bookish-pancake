@@ -1,0 +1,28 @@
+{
+  "name": "@ek/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bull": "^4.13.0",
+    "ioredis": "^5.4.1",
+    "dotenv": "^16.4.5",
+    "@ek/types": "*",
+    "@ek/config": "*",
+    "@ek/db": "*",
+    "@ek/ai": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "@types/node": "^20.14.2",
+    "@types/bull": "^4.10.0",
+    "ts-node-dev": "^2.0.0",
+    "eslint": "^8.57.0"
+  }
+}
