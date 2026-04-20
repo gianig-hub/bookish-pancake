@@ -8,14 +8,12 @@ import type { ApiResponse } from '@ek/types';
  * Attach a decoded session user to the request.
  * TODO: implement real JWT verification.
  */
-export function authenticate(req: Request, res: Response, next: NextFunction): void {
+export function authenticate(_req: Request, _res: Response, next: NextFunction): void {
   // TODO: read Authorization header or session cookie
   // TODO: verify JWT and decode SessionUser
   // TODO: attach to req.user
 
   // For now, pass through — all routes are unprotected until auth is wired
-  void req;
-  void res;
   next();
 }
 

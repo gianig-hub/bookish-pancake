@@ -17,10 +17,8 @@ export function hasMinimumRole(user: SessionUser | null, required: UserRole): bo
  * Check whether the current user can access a given path.
  * TODO: wire to PROTECTED_ROUTES from @ek/config.
  */
-export function canAccessRoute(user: SessionUser | null, path: string): boolean {
-  // TODO: look up PROTECTED_ROUTES[path] and call hasMinimumRole
+export function canAccessRoute(_user: SessionUser | null, _path: string): boolean {
+  // TODO: look up PROTECTED_ROUTES[_path] and call hasMinimumRole
   // Placeholder: allow everything for now
-  void user;
-  void path;
   return true;
 }
