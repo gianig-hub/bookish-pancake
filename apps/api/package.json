@@ -1,0 +1,16 @@
+{
+  "name": "@ek/api",
+  "version": "0.1.0",
+  "description": "EK Marketplace API",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ek/config": "*",
+    "@ek/types": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
