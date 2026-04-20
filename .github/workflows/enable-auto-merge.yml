@@ -1,0 +1,35 @@
+name: Enable Auto-Merge
+
+# Allow repo owner to manually trigger auto-merge on any PR.
+# Usage: Actions → Enable Auto-Merge → Run workflow → enter PR number
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to enable auto-merge on (e.g. 51)'
+        required: true
+        type: string
+      merge_method:
+        description: 'Merge method'
+        required: false
+        default: 'squash'
+        type: choice
+        options: [squash, merge, rebase]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable-auto-merge:
+    name: Enable auto-merge on PR #${{ inputs.pr_number }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_URL="https://github.com/${{ github.repository }}/pull/${{ inputs.pr_number }}"
+          echo "Enabling auto-merge (${{ inputs.merge_method }}) on $PR_URL"
+          gh pr merge --auto "--${{ inputs.merge_method }}" "$PR_URL"
+          echo "✅ Auto-merge enabled on PR #${{ inputs.pr_number }}"
