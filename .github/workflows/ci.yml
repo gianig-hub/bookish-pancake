@@ -40,3 +40,30 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
+
+  # After CI merges this PR into main, pick up any remaining open PRs from
+  # ek-auth-shell and enable auto-merge so they land automatically too.
+  post-merge-cleanup:
+    name: Enable auto-merge on ek-auth-shell PR (post-merge)
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge on open ek-auth-shell PR (if any)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUM=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --head "ek-auth-shell" \
+            --base "main" \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')
+          if [ -n "$PR_NUM" ]; then
+            echo "Enabling auto-merge (squash) on ek-auth-shell PR #$PR_NUM"
+            gh pr merge --auto --squash \
+              "https://github.com/${{ github.repository }}/pull/$PR_NUM"
+          else
+            echo "No open ek-auth-shell -> main PR found, nothing to do."
+          fi
